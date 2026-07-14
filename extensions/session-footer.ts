@@ -108,6 +108,7 @@ let lastSubagentRenderKey: string | undefined;
 
 const SUBAGENT_PULSE_FRAME_MS = 60;
 const SUBAGENT_PULSE_CYCLE_MS = 2800;
+const SUBAGENT_PULSE_MIN_BRIGHTNESS = 0.55;
 
 /** Compact token formatting, matching the built-in footer's style. */
 function formatTokens(count: number): string {
@@ -368,7 +369,7 @@ function pulsingAccent(theme: ThemeLike, text: string): string {
   if (!rgb) return theme.fg("accent", text);
 
   const wave = (Math.sin((Date.now() / SUBAGENT_PULSE_CYCLE_MS) * Math.PI * 2) + 1) / 2;
-  const brightness = 0.88 + wave * 0.12;
+  const brightness = SUBAGENT_PULSE_MIN_BRIGHTNESS + wave * (1 - SUBAGENT_PULSE_MIN_BRIGHTNESS);
   const shade = rgb.slice(1).map((channel) => Math.min(255, Math.round(Number(channel) * brightness)));
   return `\x1b[38;2;${shade.join(";")}m${text}\x1b[39m`;
 }
