@@ -108,7 +108,7 @@ let lastSubagentRenderKey: string | undefined;
 
 const SUBAGENT_PULSE_FRAME_MS = 60;
 const SUBAGENT_PULSE_CYCLE_MS = 2800;
-const SUBAGENT_PULSE_MIN_BRIGHTNESS = 0.55;
+const SUBAGENT_PULSE_MIN_BRIGHTNESS = 0.7;
 
 /** Compact token formatting, matching the built-in footer's style. */
 function formatTokens(count: number): string {
