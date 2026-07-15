@@ -8,7 +8,7 @@ import {
 	type SubagentFooterState,
 } from "./domain.ts";
 
-const HIDDEN_STATUS_KEYS = new Set(["mcp", "pi-lens-lsp"]);
+const HIDDEN_STATUS_KEYS = new Set(["mcp", "mcp-auth", "pi-lens-lsp"]);
 
 export interface ThemeLike {
 	fg(color: string, text: string): string;
