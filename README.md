@@ -25,7 +25,7 @@ GPT-5.6 Sol · effort high · tok ↑412k ↓18k · ctx 61%/258k    2/3 · Revie
   - current human-readable job label;
   - live elapsed time without a separate persistent widget.
 - Long right-side content truncates before important left-side status.
-- Useful third-party statuses remain visible; MCP status/authentication and routine LSP health indicators are intentionally omitted.
+- By product choice, MCP connection/authentication and LSP status indicators are omitted; other extension statuses remain visible.
 - No monetary-cost display.
 
 ## Install

@@ -185,7 +185,7 @@ test("model formatting is shared and aggregates duplicate models", () => {
 	assert.match(state?.summary ?? "", /GPT-5\.6 Sol ×2/);
 });
 
-test("pure layout preserves useful statuses, hides MCP/LSP noise, and fits Unicode text", () => {
+test("pure layout applies product-selected status omissions and fits Unicode text", () => {
 	const lines = renderFooter(
 		{
 			cwd: "~/proj/🧪/e\u0301/very-long-leaf",

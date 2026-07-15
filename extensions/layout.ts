@@ -8,7 +8,11 @@ import {
 	type SubagentFooterState,
 } from "./domain.ts";
 
-const HIDDEN_STATUS_KEYS = new Set(["mcp", "mcp-auth", "pi-lens-lsp"]);
+const OMITTED_EXTENSION_STATUS_KEYS = new Set([
+	"mcp",
+	"mcp-auth",
+	"pi-lens-lsp",
+]);
 
 export interface ThemeLike {
 	fg(color: string, text: string): string;
@@ -181,9 +185,9 @@ export function renderFooter(
 				.filter(Boolean)
 				.join(" ")
 		: "";
-	// Preserve useful extension statuses while omitting routine MCP/LSP health noise.
+	// Product decision: omit only the explicitly selected extension statuses.
 	const statuses = [...view.statuses.entries()]
-		.filter(([key]) => !HIDDEN_STATUS_KEYS.has(key))
+		.filter(([key]) => !OMITTED_EXTENSION_STATUS_KEYS.has(key))
 		.sort(([left], [right]) => left.localeCompare(right))
 		.map(([, value]) => sanitizeStatusText(value, 120))
 		.filter(Boolean);
