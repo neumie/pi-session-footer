@@ -20,7 +20,9 @@
     "LICENSE"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-transform-types --test test/*.test.ts",
+    "check": "npm run typecheck && npm test"
   },
   "pi": {
     "extensions": [

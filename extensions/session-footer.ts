@@ -92,17 +92,26 @@ interface SubagentFooterState {
   workflow?: string;
 }
 
+interface BackgroundJobsFooterState {
+  runningCount: number;
+  terminalRecentCount: number;
+  oldestStart?: number;
+  primary?: { id: string; label?: string; command: string; startedAt?: number };
+}
+
 // Live state read at render time. Updated by events; the component pulls from
 // it whenever the TUI repaints.
 const state: {
   ctx?: ExtensionContext;
   modelId?: string;
   subagents?: SubagentFooterState;
+  backgroundJobs?: BackgroundJobsFooterState;
 } = {};
 const asyncRuns = new Map<string, AsyncRunStart>();
 const subagentTokensByRun = new Map<string, TokenUsage>();
 let subagentPoller: ReturnType<typeof setInterval> | undefined;
 let subagentPulseTimer: ReturnType<typeof setInterval> | undefined;
+let backgroundJobsTimer: ReturnType<typeof setInterval> | undefined;
 let subagentRefreshInFlight = false;
 let lastSubagentRenderKey: string | undefined;
 
@@ -374,6 +383,27 @@ function pulsingAccent(theme: ThemeLike, text: string): string {
   return `\x1b[38;2;${shade.join(";")}m${text}\x1b[39m`;
 }
 
+function formatActivityElapsed(startedAt: number | undefined): string {
+  if (!startedAt) return "";
+  const seconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.floor(seconds / 60)}m${seconds % 60}s`;
+}
+
+function updateBackgroundJobsTimer(): void {
+  const running = (state.backgroundJobs?.runningCount ?? 0) > 0;
+  if (running && !backgroundJobsTimer) {
+    backgroundJobsTimer = setInterval(
+      () => requestRepaint(state.ctx),
+      SUBAGENT_PULSE_FRAME_MS,
+    );
+    backgroundJobsTimer.unref?.();
+  } else if (!running && backgroundJobsTimer) {
+    clearInterval(backgroundJobsTimer);
+    backgroundJobsTimer = undefined;
+  }
+}
+
 function makeFooter(pi: ExtensionAPI, theme: ThemeLike, footerData: FooterDataLike): Component {
   const sep = theme.fg("dim", " · ");
   const ellipsis = theme.fg("dim", "…");
@@ -386,12 +416,19 @@ function makeFooter(pi: ExtensionAPI, theme: ThemeLike, footerData: FooterDataLi
       const agentSummary = state.subagents?.summary
         ? pulsingAccent(theme, state.subagents.summary)
         : "";
+      const shellSummary = state.backgroundJobs?.runningCount
+        ? pulsingAccent(
+            theme,
+            `${state.backgroundJobs.runningCount} shell${state.backgroundJobs.runningCount === 1 ? "" : "s"}`,
+          )
+        : "";
+      const activitySummary = [agentSummary, shellSummary].filter(Boolean).join(sep);
       const trusted = ctx?.isProjectTrusted?.() ?? false;
       const trustColor = trusted ? "success" : "warning";
       const trustSuffix = `${sep}${theme.fg("dim", "project ")}${theme.fg(trustColor, trusted ? "trusted" : "untrusted")}`;
       const rawCwd = formatCwd(ctx?.cwd ?? process.cwd());
       const cwdStr = theme.fg("muted", truncatePathMiddle(rawCwd, width - visibleWidth(trustSuffix)));
-      const row1 = alignFooterSides(`${cwdStr}${trustSuffix}`, agentSummary, width, ellipsis);
+      const row1 = alignFooterSides(`${cwdStr}${trustSuffix}`, activitySummary, width, ellipsis);
 
       // Row 2: session model/effort/tokens/context on the left; workflow goal/progress on the right.
       const modelId = state.modelId ?? ctx?.model?.id ?? "no-model";
@@ -408,9 +445,23 @@ function makeFooter(pi: ExtensionAPI, theme: ThemeLike, footerData: FooterDataLi
         const normalized = value.replace(/[\r\n\t]+/g, " ").trim();
         return normalized ? [normalized] : [];
       });
-      const row2RightParts = [state.subagents?.workflow, ...workflowActivity].filter(
-        (value): value is string => Boolean(value),
-      );
+      const backgroundActivity = state.backgroundJobs?.runningCount
+        ? [
+            "Running",
+            compactText(
+              state.backgroundJobs.primary?.label ?? state.backgroundJobs.primary?.command ?? "background job",
+              40,
+            ),
+            formatActivityElapsed(state.backgroundJobs.primary?.startedAt),
+          ]
+            .filter(Boolean)
+            .join(" ")
+        : undefined;
+      const row2RightParts = [
+        state.subagents?.workflow,
+        backgroundActivity,
+        ...workflowActivity,
+      ].filter((value): value is string => Boolean(value));
       const row2Right = theme.fg("dim", row2RightParts.join(" · "));
       const row2 = alignFooterSides(row2Left, row2Right, width, ellipsis);
 
@@ -573,12 +624,36 @@ export default function (pi: ExtensionAPI) {
     void refreshSubagentFooter();
   });
 
+  pi.events.on("background-jobs:changed", (raw) => {
+    const payload = raw as Partial<BackgroundJobsFooterState>;
+    state.backgroundJobs = {
+      runningCount: Math.max(0, Number(payload.runningCount) || 0),
+      terminalRecentCount: Math.max(0, Number(payload.terminalRecentCount) || 0),
+      oldestStart: typeof payload.oldestStart === "number" ? payload.oldestStart : undefined,
+      primary:
+        payload.primary && typeof payload.primary.command === "string"
+          ? {
+              id: String(payload.primary.id ?? ""),
+              label: typeof payload.primary.label === "string" ? payload.primary.label : undefined,
+              command: payload.primary.command,
+              startedAt:
+                typeof payload.primary.startedAt === "number" ? payload.primary.startedAt : undefined,
+            }
+          : undefined,
+    };
+    updateBackgroundJobsTimer();
+    requestRepaint(state.ctx);
+  });
+
   pi.on("session_shutdown", (_event, ctx) => {
     stopSubagentPoller();
     asyncRuns.clear();
     subagentTokensByRun.clear();
     lastSubagentRenderKey = undefined;
     state.subagents = undefined;
+    state.backgroundJobs = undefined;
+    if (backgroundJobsTimer) clearInterval(backgroundJobsTimer);
+    backgroundJobsTimer = undefined;
     ctx.ui.setStatus("subagents", undefined);
     state.ctx = undefined;
   });

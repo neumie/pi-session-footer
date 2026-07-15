@@ -3,8 +3,8 @@
 A compact, animated two-row footer for [Pi](https://github.com/earendil-works/pi-mono).
 
 ```text
-~/code/project · project trusted                    agents 3 · Sol ×2, Terra · 128k tok
-GPT-5.6 Sol · effort high · tok ↑412k ↓18k · ctx 61%/258k    2/3 · Review authentication
+~/code/project · project trusted             agents 3 · Sol ×2, Terra · 128k tok · 1 shell
+GPT-5.6 Sol · effort high · tok ↑412k ↓18k · ctx 61%/258k    2/3 · Review authentication · Running tests 18s
 ```
 
 ## Features
@@ -20,6 +20,10 @@ GPT-5.6 Sol · effort high · tok ↑412k ↓18k · ctx 61%/258k    2/3 · Revie
   - workflow goal and logical progress;
   - smooth, theme-aware pulse while agents are active;
   - restoration of active runs and token totals after reload.
+- Optional [`pi-background-jobs`](https://github.com/neumie/pi-background-jobs) integration:
+  - active shell count and pulse;
+  - current human-readable job label;
+  - live elapsed time without a separate persistent widget.
 - Long right-side content truncates before important left-side status.
 - No monetary-cost display.
 
@@ -58,7 +62,7 @@ Save that as `~/.pi/agent/extensions/subagent/config.json`.
 
 ```bash
 npm install
-npm run typecheck
+npm run check
 ```
 
 The extension is loaded directly from TypeScript; no build step is required.
