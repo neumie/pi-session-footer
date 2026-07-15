@@ -20,9 +20,13 @@
     "LICENSE"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --project tsconfig.json",
+    "typecheck:test": "tsc --project tsconfig.test.json",
     "test": "node --experimental-transform-types --test test/*.test.ts",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm run typecheck:test && npm test"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "pi": {
     "extensions": [

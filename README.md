@@ -3,7 +3,7 @@
 A compact, animated two-row footer for [Pi](https://github.com/earendil-works/pi-mono).
 
 ```text
-~/code/project · project trusted             agents 3 · Sol ×2, Terra · 128k tok · 1 shell
+~/code/project · project trusted             agents 3 · GPT-5.6 Sol ×2, GPT-5.6 Terra · 128k tok · 1 shell
 GPT-5.6 Sol · effort high · tok ↑412k ↓18k · ctx 61%/258k    2/3 · Review authentication · Running tests 18s
 ```
 
@@ -48,15 +48,7 @@ Pi packages execute with your full system permissions. Review extension source b
 
 ## pi-subagents setup
 
-The integration activates automatically when `pi-subagents` emits async lifecycle events. To use this footer as the only running-agent surface, disable its separate above-editor widget:
-
-```json
-{
-  "asyncWidget": false
-}
-```
-
-Save that as `~/.pi/agent/extensions/subagent/config.json`.
+The integration activates automatically when `pi-subagents` emits async lifecycle events. It only renders activity in this footer and does not modify `pi-subagents` widgets or statuses.
 
 ## Development
 
@@ -65,7 +57,7 @@ npm install
 npm run check
 ```
 
-The extension is loaded directly from TypeScript; no build step is required.
+Requires Node.js 22 or newer. The extension is loaded directly from TypeScript; no build step is required.
 
 ## Notes
 
