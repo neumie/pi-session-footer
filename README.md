@@ -25,6 +25,7 @@ GPT-5.6 Sol · effort high · tok ↑412k ↓18k · ctx 61%/258k    2/3 · Revie
   - current human-readable job label;
   - live elapsed time without a separate persistent widget.
 - Long right-side content truncates before important left-side status.
+- Useful third-party statuses remain visible; routine MCP and LSP health indicators are intentionally omitted.
 - No monetary-cost display.
 
 ## Install

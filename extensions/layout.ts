@@ -8,6 +8,8 @@ import {
 	type SubagentFooterState,
 } from "./domain.ts";
 
+const HIDDEN_STATUS_KEYS = new Set(["mcp", "pi-lens-lsp"]);
+
 export interface ThemeLike {
 	fg(color: string, text: string): string;
 	bold(text: string): string;
@@ -179,8 +181,9 @@ export function renderFooter(
 				.filter(Boolean)
 				.join(" ")
 		: "";
-	// The footer replaces Pi's footer, so preserve every status supplied by other extensions.
+	// Preserve useful extension statuses while omitting routine MCP/LSP health noise.
 	const statuses = [...view.statuses.entries()]
+		.filter(([key]) => !HIDDEN_STATUS_KEYS.has(key))
 		.sort(([left], [right]) => left.localeCompare(right))
 		.map(([, value]) => sanitizeStatusText(value, 120))
 		.filter(Boolean);

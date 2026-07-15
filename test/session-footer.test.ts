@@ -185,7 +185,7 @@ test("model formatting is shared and aggregates duplicate models", () => {
 	assert.match(state?.summary ?? "", /GPT-5\.6 Sol ×2/);
 });
 
-test("pure layout preserves themed unrelated statuses and fits Unicode text", () => {
+test("pure layout preserves useful statuses, hides MCP/LSP noise, and fits Unicode text", () => {
 	const lines = renderFooter(
 		{
 			cwd: "~/proj/🧪/e\u0301/very-long-leaf",
@@ -216,6 +216,8 @@ test("pure layout preserves themed unrelated statuses and fits Unicode text", ()
 			outputTokens: 0,
 			statuses: new Map([
 				["alpha", "\x1b[31mA styled\x1b[0m\n\x1b]unsafe\x07"],
+				["mcp", "MCP: 0/4 servers"],
+				["pi-lens-lsp", "LSP Active: typescript"],
 				["zeta", "Z status"],
 			]),
 			now: 0,
@@ -227,6 +229,7 @@ test("pure layout preserves themed unrelated statuses and fits Unicode text", ()
 		500,
 	);
 	assert.match(themed[1], /<dim>.*\x1b\[31mA styled\x1b\[0m.*Z status<\/dim>/);
+	assert.doesNotMatch(themed[1], /MCP:|LSP Active:/);
 	assert.doesNotMatch(themed[1], /\n|\x1b\]/);
 });
 
