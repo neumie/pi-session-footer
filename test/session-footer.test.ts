@@ -182,7 +182,8 @@ test("domain sanitizes malformed optional payloads and keeps queued work distinc
 	assert.equal(aggregate.queued, 1);
 	assert.equal(aggregate.tokens, 20);
 	const footer = formatSubagentFooter([{ start, status }]);
-	assert.match(footer?.summary ?? "", /agents 0 \(\+1 queued\).*20 tok/);
+	assert.match(footer?.summary ?? "", /agents 0 \(\+1 queued\).*20$/);
+	assert.doesNotMatch(footer?.summary ?? "", /\btok\b/);
 	assert.equal(footer?.activeCount, 0);
 });
 
@@ -248,7 +249,13 @@ test("pure layout applies product-selected status omissions and fits Unicode tex
 		},
 		500,
 	);
+	assert.match(themed[0], /<success>trusted<\/success>/);
+	assert.match(
+		themed[1],
+		/<dim>off<\/dim>.*<muted>—<\/muted>.*<text>↑0 ↓0<\/text>/,
+	);
 	assert.match(themed[1], /<dim>.*\x1b\[31mA styled\x1b\[0m.*Z status<\/dim>/);
+	assert.doesNotMatch(themed.join("\n"), /\b(?:project|effort|tok|ctx)\b/);
 	assert.doesNotMatch(themed[1], /MCP:|Authenticating calendar|LSP Active:/);
 	assert.doesNotMatch(themed[1], /\n|\x1b\]/);
 });
@@ -344,7 +351,7 @@ test("restore keeps completed tokens while only restoring active runs", async ()
 	await start({}, ctx);
 	const footer = createFooter(ui, () => {});
 	const output = footer.render(200).join("\n");
-	assert.match(output, /tok ↑12 ↓18/);
+	assert.match(output, /↑12 ↓18/);
 	assert.match(output, /agents 1/);
 	assert.doesNotMatch(output, /agents 2/);
 	controller.stop();
@@ -392,7 +399,7 @@ test("completed async token totals survive reload without temporary status artif
 	assert.ok(start);
 	await start({}, makeContext(secondUi, secondPi.entries));
 	const footer = createFooter(secondUi, () => {});
-	assert.match(footer.render(200).join("\n"), /tok ↑10 ↓15/);
+	assert.match(footer.render(200).join("\n"), /↑10 ↓15/);
 	second.stop();
 });
 
@@ -421,7 +428,7 @@ test("completion events remain authoritative over stale in-flight status reads",
 	});
 	await new Promise((resolve) => setImmediate(resolve));
 	const footer = createFooter(ui, () => {});
-	assert.match(footer.render(200).join("\n"), /tok ↑100 ↓20/);
+	assert.match(footer.render(200).join("\n"), /↑100 ↓20/);
 	controller.stop();
 });
 
@@ -476,7 +483,7 @@ test("completion events from another parent session are ignored", () => {
 		totalTokens: { input: 100, output: 20, total: 120 },
 	});
 	const footer = createFooter(ui, () => {});
-	assert.match(footer.render(200).join("\n"), /tok ↑0 ↓0/);
+	assert.match(footer.render(200).join("\n"), /↑0 ↓0/);
 	assert.equal(pi.entries.length, 0);
 	controller.stop();
 });
@@ -515,7 +522,7 @@ test("legacy migration reconciles overlapping durable run snapshots", async () =
 		makeContext(ui, pi.entries, "/tmp/footer-test-session.jsonl"),
 	);
 	const footer = createFooter(ui, () => {});
-	assert.match(footer.render(200).join("\n"), /tok ↑100 ↓20/);
+	assert.match(footer.render(200).join("\n"), /↑100 ↓20/);
 	controller.stop();
 });
 
@@ -546,7 +553,7 @@ test("legacy migration persists nothing until every child can be read", async ()
 		makeContext(ui, pi.entries, "/tmp/footer-test-session.jsonl"),
 	);
 	const footer = createFooter(ui, () => {});
-	assert.match(footer.render(200).join("\n"), /tok ↑0 ↓0/);
+	assert.match(footer.render(200).join("\n"), /↑0 ↓0/);
 	assert.equal(
 		pi.entries.some(
 			(entry) =>
@@ -581,7 +588,7 @@ test("legacy migration persists nothing until every child can be read", async ()
 		),
 	);
 	const retryFooter = createFooter(retryUi, () => {});
-	assert.match(retryFooter.render(200).join("\n"), /tok ↑30 ↓5/);
+	assert.match(retryFooter.render(200).join("\n"), /↑30 ↓5/);
 	retry.stop();
 });
 
@@ -731,7 +738,7 @@ test("legacy migration streams every sibling child session on its active branch"
 	assert.ok(start);
 	await start({}, makeContext(ui, pi.entries, parentSession));
 	const footer = createFooter(ui, () => {});
-	assert.match(footer.render(200).join("\n"), /tok ↑108 ↓13/);
+	assert.match(footer.render(200).join("\n"), /↑108 ↓13/);
 	controller.stop();
 });
 
@@ -846,7 +853,7 @@ test("legacy async notifications rebuild tokens once when temporary artifacts ar
 		makeContext(ui, pi.entries, "/tmp/footer-test-session.jsonl"),
 	);
 	const footer = createFooter(ui, () => {});
-	assert.match(footer.render(200).join("\n"), /tok ↑100 ↓20/);
+	assert.match(footer.render(200).join("\n"), /↑100 ↓20/);
 	assert.equal(reads, 1);
 	assert.equal(
 		pi.entries.filter(
@@ -887,7 +894,7 @@ test("legacy async notifications rebuild tokens once when temporary artifacts ar
 		),
 	);
 	const reloadedFooter = createFooter(reloadedUi, () => {});
-	assert.match(reloadedFooter.render(200).join("\n"), /tok ↑100 ↓20/);
+	assert.match(reloadedFooter.render(200).join("\n"), /↑100 ↓20/);
 	assert.equal(reads, 1);
 	reloaded.stop();
 });

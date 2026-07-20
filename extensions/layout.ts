@@ -138,7 +138,7 @@ export function renderFooter(
 ): string[] {
 	const divider = theme.fg("dim", " · ");
 	const ellipsis = theme.fg("dim", "…");
-	const trust = `${divider}${theme.fg("dim", "project ")}${theme.fg(view.trusted ? "success" : "warning", view.trusted ? "trusted" : "untrusted")}`;
+	const trust = `${divider}${theme.fg(view.trusted ? "success" : "warning", view.trusted ? "trusted" : "untrusted")}`;
 	const cwd = theme.fg(
 		"muted",
 		truncatePath(view.cwd, width - visibleWidth(trust)),
@@ -161,16 +161,15 @@ export function renderFooter(
 	);
 
 	const model = theme.fg("accent", theme.bold(formatModel(view.modelId)));
-	const effort =
-		theme.fg("dim", "effort ") +
-		theme.fg(effortColor(view.thinkingLevel), view.thinkingLevel);
-	const tokenText =
-		theme.fg("dim", "tok ") +
-		theme.fg(
-			"text",
-			`↑${formatTokens(view.inputTokens)} ↓${formatTokens(view.outputTokens)}`,
-		);
-	const ctx = theme.fg("dim", "ctx ") + context(theme, view.contextUsage);
+	const effort = theme.fg(
+		effortColor(view.thinkingLevel),
+		view.thinkingLevel,
+	);
+	const tokenText = theme.fg(
+		"text",
+		`↑${formatTokens(view.inputTokens)} ↓${formatTokens(view.outputTokens)}`,
+	);
+	const ctx = context(theme, view.contextUsage);
 	const background = view.backgroundJobs?.runningCount
 		? [
 				"Running",
@@ -195,7 +194,7 @@ export function renderFooter(
 		.filter(Boolean)
 		.join(" · ");
 	const row2 = alignSides(
-		[model, effort, tokenText, ctx].join(divider),
+		[model, effort, ctx, tokenText].join(divider),
 		theme.fg("dim", right),
 		width,
 		ellipsis,

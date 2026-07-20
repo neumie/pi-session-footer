@@ -417,7 +417,7 @@ export function formatSubagentFooter(
 	];
 	const models = formatSubagentModels(active);
 	if (models) summary.push(models);
-	summary.push(`${formatTokens(tokens)} tok`);
+	summary.push(formatTokens(tokens));
 	return {
 		summary: summary.join(" · "),
 		workflow: workflowGoal(snapshots),

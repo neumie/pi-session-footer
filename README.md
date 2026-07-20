@@ -3,8 +3,8 @@
 A compact, animated two-row footer for [Pi](https://github.com/earendil-works/pi-mono).
 
 ```text
-~/code/project · project trusted             agents 3 · GPT-5.6 Sol ×2, GPT-5.6 Terra · 128k tok · 1 shell
-GPT-5.6 Sol · effort high · tok ↑412k ↓18k · ctx 61%/258k    2/3 · Review authentication · Running tests 18s
+~/code/project · trusted             agents 3 · GPT-5.6 Sol ×2, GPT-5.6 Terra · 128k · 1 shell
+GPT-5.6 Sol · high · 61%/258k · ↑412k ↓18k    2/3 · Review authentication · Running tests 18s
 ```
 
 ## Features
