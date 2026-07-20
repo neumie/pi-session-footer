@@ -10,13 +10,17 @@ export interface AsyncRunStart {
 
 export interface AsyncStepStatus {
 	agent?: string;
-	status?: "queued" | "running" | "complete" | "failed" | "paused";
+	status?: "queued" | "running" | "complete" | "failed" | "paused" | "stopped";
 	model?: string;
+	sessionFile?: string;
 }
 
 export interface AsyncRunStatus {
 	sessionId?: string;
-	state?: "queued" | "running" | "complete" | "failed" | "paused";
+	sessionFiles?: string[];
+	state?: "queued" | "running" | "complete" | "failed" | "paused" | "stopped";
+	startedAt?: number;
+	endedAt?: number;
 	currentStep?: number;
 	chainStepCount?: number;
 	workflowGraph?: {
@@ -35,6 +39,19 @@ export interface TokenUsage {
 	input: number;
 	output: number;
 	total: number;
+}
+
+export const ASYNC_TOKEN_ENTRY_TYPE = "pi-session-footer:async-tokens";
+export const ASYNC_TOKEN_ENTRY_VERSION = 1;
+
+export interface AsyncTokenSnapshot {
+	version: typeof ASYNC_TOKEN_ENTRY_VERSION;
+	id: string;
+	totalTokens: TokenUsage;
+	sessionId?: string;
+	completedAt?: number;
+	sessionFiles?: string[];
+	coveredSessions?: string[];
 }
 
 export interface ActiveSubagent {
@@ -62,7 +79,14 @@ export interface BackgroundJobsFooterState {
 
 const CONTROL_OR_ANSI =
 	/(?:\x1B\][^\x07\x1B]*(?:\x07|\x1B\\)|\x1B\[[0-?]*[ -/]*[@-~]|[\x00-\x08\x0B\x0C\x0E-\x1F\x7F])/g;
-const STATES = new Set(["queued", "running", "complete", "failed", "paused"]);
+const STATES = new Set([
+	"queued",
+	"running",
+	"complete",
+	"failed",
+	"paused",
+	"stopped",
+]);
 
 function object(value: unknown): Record<string, unknown> | undefined {
 	return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -74,6 +98,22 @@ function string(value: unknown, maxWidth = 160): string | undefined {
 	if (typeof value !== "string") return undefined;
 	const clean = value.replace(CONTROL_OR_ANSI, "").replace(/\s+/g, " ").trim();
 	return clean ? truncateToWidth(clean, maxWidth, "…") : undefined;
+}
+
+function pathString(value: unknown, maxLength = 4096): string | undefined {
+	if (typeof value !== "string") return undefined;
+	const clean = value.replace(CONTROL_OR_ANSI, "").trim();
+	return clean ? clean.slice(0, maxLength) : undefined;
+}
+
+function uniquePaths(values: unknown[], maxItems = 256): string[] | undefined {
+	const paths = new Set<string>();
+	for (const value of values) {
+		const path = pathString(value);
+		if (path) paths.add(path);
+		if (paths.size >= maxItems) break;
+	}
+	return paths.size > 0 ? [...paths] : undefined;
 }
 
 function count(value: unknown): number | undefined {
@@ -88,13 +128,65 @@ function state(value: unknown): AsyncRunStatus["state"] | undefined {
 		: undefined;
 }
 
-function tokens(value: unknown): TokenUsage | undefined {
+export function parseTokenUsage(value: unknown): TokenUsage | undefined {
 	const raw = object(value);
 	if (!raw) return undefined;
 	const input = count(raw.input) ?? 0;
 	const output = count(raw.output) ?? 0;
 	const total = count(raw.total) ?? input + output;
 	return { input, output, total };
+}
+
+export function parseAsyncTokenSnapshot(
+	value: unknown,
+): AsyncTokenSnapshot | undefined {
+	const raw = object(value);
+	if (!raw || raw.version !== ASYNC_TOKEN_ENTRY_VERSION) return undefined;
+	const id = string(raw.id ?? raw.runId, 120);
+	const totalTokens = parseTokenUsage(raw.totalTokens);
+	if (!id || !totalTokens) return undefined;
+	const coveredSessions = Array.isArray(raw.coveredSessions)
+		? raw.coveredSessions
+				.slice(0, 256)
+				.map((entry) => pathString(entry, 1024))
+				.filter((entry): entry is string => Boolean(entry))
+		: undefined;
+	return {
+		version: ASYNC_TOKEN_ENTRY_VERSION,
+		id,
+		totalTokens,
+		sessionId: pathString(raw.sessionId),
+		completedAt: count(raw.completedAt ?? raw.endedAt ?? raw.timestamp),
+		sessionFiles: uniquePaths([
+			...(Array.isArray(raw.sessionFiles) ? raw.sessionFiles : []),
+			raw.sessionFile,
+		]),
+		coveredSessions,
+	};
+}
+
+export function parseAsyncRunCompletion(
+	value: unknown,
+): AsyncTokenSnapshot | undefined {
+	const raw = object(value);
+	if (!raw) return undefined;
+	const runId = string(raw.runId ?? raw.id, 100);
+	const totalTokens = parseTokenUsage(raw.totalTokens);
+	if (!runId || !totalTokens) return undefined;
+	const resultSessionFiles = Array.isArray(raw.results)
+		? raw.results.flatMap((value) => {
+				const result = object(value);
+				return result ? [result.sessionFile, result.sessionPath] : [];
+			})
+		: [];
+	return {
+		version: ASYNC_TOKEN_ENTRY_VERSION,
+		id: `run:${runId}`,
+		totalTokens,
+		sessionId: pathString(raw.sessionId),
+		completedAt: count(raw.endedAt ?? raw.timestamp),
+		sessionFiles: uniquePaths([raw.sessionFile, ...resultSessionFiles]),
+	};
 }
 
 /** Runtime boundary for pi-subagents event payloads. */
@@ -136,6 +228,7 @@ export function parseAsyncRunStatus(
 						agent: string(step.agent, 80),
 						model: string(step.model, 120),
 						status: state(step.status),
+						sessionFile: pathString(step.sessionFile),
 					},
 				];
 			})
@@ -164,15 +257,21 @@ export function parseAsyncRunStatus(
 			})
 		: undefined;
 	return {
-		sessionId: string(raw.sessionId, 200),
+		sessionId: pathString(raw.sessionId, 4096),
+		sessionFiles: uniquePaths([
+			raw.sessionFile,
+			...(steps?.map((step) => step.sessionFile) ?? []),
+		]),
 		state: state(raw.state),
+		startedAt: count(raw.startedAt),
+		endedAt: count(raw.endedAt),
 		currentStep: count(raw.currentStep),
 		chainStepCount: count(raw.chainStepCount),
 		workflowGraph: graph
 			? { currentNodeId: string(graph.currentNodeId, 100), nodes }
 			: undefined,
 		steps,
-		totalTokens: tokens(raw.totalTokens),
+		totalTokens: parseTokenUsage(raw.totalTokens),
 	};
 }
 
@@ -199,7 +298,12 @@ export function parseBackgroundJobs(
 }
 
 export function isFinishedState(value: AsyncRunStatus["state"]): boolean {
-	return value === "complete" || value === "failed" || value === "paused";
+	return (
+		value === "complete" ||
+		value === "failed" ||
+		value === "paused" ||
+		value === "stopped"
+	);
 }
 
 export function formatTokens(count: number): string {

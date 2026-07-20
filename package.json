@@ -26,7 +26,7 @@
     "check": "npm run typecheck && npm run typecheck:test && npm test"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.19.0"
   },
   "pi": {
     "extensions": [
@@ -34,14 +34,12 @@
     ]
   },
   "peerDependencies": {
-    "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*"
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "^0.80.6",
-    "@earendil-works/pi-coding-agent": "^0.80.6",
-    "@earendil-works/pi-tui": "^0.80.6",
+    "@earendil-works/pi-coding-agent": "^0.80.10",
+    "@earendil-works/pi-tui": "^0.80.10",
     "typescript": "^5.9.3"
   }
 }

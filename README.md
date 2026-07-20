@@ -19,7 +19,7 @@ GPT-5.6 Sol · effort high · tok ↑412k ↓18k · ctx 61%/258k    2/3 · Revie
   - live subagent token usage;
   - workflow goal and logical progress;
   - smooth, theme-aware pulse while agents are active;
-  - restoration of active runs and token totals after reload.
+  - restoration of active runs and durable token totals after reload.
 - Optional [`pi-background-jobs`](https://github.com/neumie/pi-background-jobs) integration:
   - active shell count and pulse;
   - current human-readable job label;
@@ -58,12 +58,13 @@ npm install
 npm run check
 ```
 
-Requires Node.js 22 or newer. The extension is loaded directly from TypeScript; no build step is required.
+Requires Node.js 22.19.0 or newer. The extension is loaded directly from TypeScript; no build step is required.
 
 ## Notes
 
 - This extension replaces Pi's complete footer. Another extension calling `ctx.ui.setFooter()` may override it depending on load order.
-- Subagent token aggregation uses `pi-subagents` async status artifacts associated with the active Pi session.
+- Live subagent activity uses `pi-subagents` async status artifacts associated with the active Pi session. Completed token totals are stored as custom session entries that are not sent to the model, so temporary artifact cleanup does not reset the counter.
+- Existing sessions created before durable snapshots are migrated from up to 256 contained child session files across the async run directories referenced by `subagent-notify` entries on the active branch. The migration snapshot is persisted only after every discovered transcript parses successfully; otherwise the next reload retries it. Reads are bounded to 64 MiB, 200,000 lines, and 100,000 entries per transcript, with an 8 MiB line limit.
 - Smooth color interpolation requires truecolor terminal support; other color modes retain the normal accent color.
 
 ## License
