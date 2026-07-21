@@ -55,6 +55,9 @@ export interface FooterRuntimeDependencies {
 	readSessionTokens(sessionFile: string): Promise<TokenUsage | undefined>;
 }
 
+export const SESSION_FOOTER_MOUNTED_EVENT = "pi-session-footer:mounted";
+export const SESSION_FOOTER_ROWS = 2;
+
 const PULSE_FRAME_MS = 60;
 const POLL_INTERVAL_MS = 500;
 
@@ -217,6 +220,9 @@ export class FooterController {
 				footerData as FooterDataLike,
 			),
 		);
+		this.pi.events.emit(SESSION_FOOTER_MOUNTED_EVENT, {
+			rows: SESSION_FOOTER_ROWS,
+		});
 		this.repaint();
 	}
 

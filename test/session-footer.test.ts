@@ -12,6 +12,8 @@ import { visibleWidth } from "@earendil-works/pi-tui";
 import {
 	FooterController,
 	type FooterRuntimeDependencies,
+	SESSION_FOOTER_MOUNTED_EVENT,
+	SESSION_FOOTER_ROWS,
 } from "../extensions/controller.ts";
 import {
 	aggregateSubagents,
@@ -224,7 +226,7 @@ test("pure layout applies product-selected status omissions and fits Unicode tex
 		theme(),
 		28,
 	);
-	assert.equal(lines.length, 2);
+	assert.equal(lines.length, SESSION_FOOTER_ROWS);
 	assert.ok(lines.every((line) => visibleWidth(line) <= 28));
 	const themed = renderFooter(
 		{
@@ -274,9 +276,18 @@ test("controller uses direct TUI render, preserves status ownership, and shares 
 	const fake = fakeDependencies({ readStatus: async () => status });
 	const controller = new FooterController(pi.api(), fake.dependencies);
 	controller.register();
+	let mountedRows: unknown;
+	const stopMountedListener = pi.events.on(
+		SESSION_FOOTER_MOUNTED_EVENT,
+		(payload) => {
+			mountedRows = (payload as { rows?: unknown }).rows;
+		},
+	);
 	const ui: FakeUI = { statusWrites: [], widgetWrites: [] };
 	const ctx = makeContext(ui);
 	controller.start(ctx);
+	assert.equal(mountedRows, 2);
+	stopMountedListener();
 	let renderRequests = 0;
 	const footer = createFooter(
 		ui,
