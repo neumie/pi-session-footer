@@ -11,6 +11,7 @@ GPT-5.6 Sol · high · 61%/258k · ↑412k ↓18k    2/3 · Review authenticatio
 
 - Two compact rows that preserve project and model information.
 - Announces its mounted two-row height on Pi's extension event bus so reload placeholders can reserve the exact footer footprint.
+- Defers reload-only mounting by one event-loop turn, letting Pi settle the completion message and editor before the footer becomes visible at its final screen position.
 - Current directory and project trust state.
 - Model, reasoning effort, context usage, and session input/output tokens.
 - Main-session token totals include async subagents invoked during the session.

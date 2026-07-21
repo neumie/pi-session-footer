@@ -132,6 +132,10 @@ function fakeDependencies(overrides: Partial<FooterRuntimeDependencies> = {}) {
 		clearInterval(timer) {
 			timers.delete(timer as unknown as number);
 		},
+		scheduleMount(handler) {
+			const immediate = setImmediate(handler);
+			return () => clearImmediate(immediate);
+		},
 		readStatus: async () => undefined,
 		readRunDirectories: async () => [],
 		canonicalPath: async (path) => path,
@@ -327,6 +331,69 @@ test("controller uses direct TUI render, preserves status ownership, and shares 
 	controller.stop();
 	assert.equal(fake.timers.size, 0);
 	assert.equal([...pi.bus.values()].flat().length, 0);
+});
+
+test("reload defers the custom footer until Pi settles its final layout", async () => {
+	const pi = new FakePi();
+	let pendingMount: (() => void) | undefined;
+	let mountCancelled = false;
+	const fake = fakeDependencies({
+		scheduleMount(handler) {
+			pendingMount = handler;
+			return () => {
+				mountCancelled = true;
+			};
+		},
+	});
+	const controller = new FooterController(pi.api(), fake.dependencies);
+	controller.register();
+	const ui: FakeUI = { statusWrites: [], widgetWrites: [] };
+	let mountedRows: unknown;
+	pi.events.on(SESSION_FOOTER_MOUNTED_EVENT, (payload) => {
+		mountedRows = (payload as { rows?: unknown }).rows;
+	});
+	const start = pi.lifecycle.get("session_start")?.[0];
+	assert.ok(start);
+
+	await start({ reason: "reload" }, makeContext(ui));
+	assert.equal(ui.footerFactory, undefined);
+	assert.equal(mountedRows, undefined);
+	assert.ok(pendingMount);
+	assert.equal(mountCancelled, false);
+
+	pendingMount();
+	assert.ok(ui.footerFactory);
+	assert.equal(mountedRows, SESSION_FOOTER_ROWS);
+	controller.stop();
+});
+
+test("shutdown cancels a pending reload footer mount", async () => {
+	const pi = new FakePi();
+	let pendingMount: (() => void) | undefined;
+	let mountCancelled = false;
+	const fake = fakeDependencies({
+		scheduleMount(handler) {
+			pendingMount = handler;
+			return () => {
+				mountCancelled = true;
+			};
+		},
+	});
+	const controller = new FooterController(pi.api(), fake.dependencies);
+	controller.register();
+	const ui: FakeUI = { statusWrites: [], widgetWrites: [] };
+	const ctx = makeContext(ui);
+	const start = pi.lifecycle.get("session_start")?.[0];
+	const shutdown = pi.lifecycle.get("session_shutdown")?.[0];
+	assert.ok(start);
+	assert.ok(shutdown);
+
+	await start({ reason: "reload" }, ctx);
+	assert.ok(pendingMount);
+	await shutdown({ reason: "reload" }, ctx);
+	assert.equal(mountCancelled, true);
+	pendingMount();
+	assert.equal(ui.footerFactory, undefined);
 });
 
 test("token updates accept Pi's fresh context wrappers for the current session only", async () => {

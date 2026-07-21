@@ -48,6 +48,7 @@ export interface FooterRuntimeDependencies {
 	now(): number;
 	setInterval(handler: () => void, milliseconds: number): Timer;
 	clearInterval(timer: Timer): void;
+	scheduleMount(handler: () => void): () => void;
 	readStatus(asyncDir: string): Promise<unknown>;
 	readRunDirectories(): Promise<string[]>;
 	canonicalPath(path: string): Promise<string | undefined>;
@@ -71,6 +72,10 @@ function defaultDependencies(): FooterRuntimeDependencies {
 		},
 		clearInterval(timer) {
 			clearInterval(timer);
+		},
+		scheduleMount(handler) {
+			const immediate = setImmediate(handler);
+			return () => clearImmediate(immediate);
 		},
 		async readStatus(asyncDir) {
 			try {
@@ -155,6 +160,7 @@ export class FooterController {
 	private session: SessionRuntime | undefined;
 	private poller: Timer | undefined;
 	private pulseTimer: Timer | undefined;
+	private cancelPendingMount: (() => void) | undefined;
 	private requestRender: (() => void) | undefined;
 	private nextGeneration = 0;
 	private disposed = false;
@@ -175,9 +181,11 @@ export class FooterController {
 				this.onSubagentCompleted(payload),
 			),
 		);
-		this.pi.on("session_start", async (_event, ctx) => {
-			this.start(ctx);
+		this.pi.on("session_start", async (event, ctx) => {
+			const deferMount = event.reason === "reload";
+			const runtime = this.start(ctx, deferMount);
 			await this.restore(ctx);
+			if (deferMount) this.deferMount(runtime);
 		});
 		this.pi.on("session_shutdown", () => this.stop());
 		this.pi.on("model_select", (event, ctx) => {
@@ -191,7 +199,7 @@ export class FooterController {
 		this.pi.on("message_end", (_event, ctx) => this.updateMainTokens(ctx));
 	}
 
-	start(ctx: ExtensionContext): void {
+	start(ctx: ExtensionContext, deferMount = false): SessionRuntime {
 		this.resetSession();
 		const restored = tokenSnapshots(ctx);
 		const runtime: SessionRuntime = {
@@ -212,7 +220,22 @@ export class FooterController {
 			refreshing: false,
 		};
 		this.session = runtime;
-		ctx.ui.setFooter((tui, theme, footerData) =>
+		if (!deferMount) this.mount(runtime);
+		return runtime;
+	}
+
+	private deferMount(runtime: SessionRuntime): void {
+		if (!this.isCurrent(runtime.generation)) return;
+		this.cancelPendingMount?.();
+		this.cancelPendingMount = this.dependencies.scheduleMount(() => {
+			this.cancelPendingMount = undefined;
+			this.mount(runtime);
+		});
+	}
+
+	private mount(runtime: SessionRuntime): void {
+		if (!this.isCurrent(runtime.generation)) return;
+		runtime.ctx.ui.setFooter((tui, theme, footerData) =>
 			this.createFooter(
 				runtime.generation,
 				tui,
@@ -235,6 +258,8 @@ export class FooterController {
 	private resetSession(): void {
 		++this.nextGeneration;
 		this.stopTimers();
+		this.cancelPendingMount?.();
+		this.cancelPendingMount = undefined;
 		this.requestRender = undefined;
 		this.session = undefined;
 	}
