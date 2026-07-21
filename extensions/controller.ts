@@ -14,11 +14,9 @@ import {
 	parseAsyncRunCompletion,
 	parseAsyncRunStart,
 	parseAsyncRunStatus,
-	parseBackgroundJobs,
 	type AsyncRunStart,
 	type AsyncRunStatus,
 	type AsyncTokenSnapshot,
-	type BackgroundJobsFooterState,
 	type SubagentFooterState,
 	type TokenUsage,
 } from "./domain.ts";
@@ -119,7 +117,6 @@ interface SessionRuntime {
 	mainTokens: TokenUsage;
 	legacyCoverage?: LegacyTokenCoverage;
 	subagents?: SubagentFooterState;
-	backgroundJobs?: BackgroundJobsFooterState;
 	refreshing: boolean;
 }
 
@@ -173,9 +170,6 @@ export class FooterController {
 			),
 			this.pi.events.on("subagent:async-complete", (payload) =>
 				this.onSubagentCompleted(payload),
-			),
-			this.pi.events.on("background-jobs:changed", (payload) =>
-				this.onBackgroundJobs(payload),
 			),
 		);
 		this.pi.on("session_start", async (_event, ctx) => {
@@ -269,7 +263,6 @@ export class FooterController {
 						outputTokens: current.mainTokens.output + extraTokens.output,
 						contextUsage: current.ctx.getContextUsage(),
 						subagents: current.subagents,
-						backgroundJobs: current.backgroundJobs,
 						statuses: footerData.getExtensionStatuses(),
 						now: this.dependencies.now(),
 					},
@@ -322,15 +315,6 @@ export class FooterController {
 		this.updateTimers();
 		this.repaint();
 		void this.refresh();
-	}
-
-	private onBackgroundJobs(payload: unknown): void {
-		const current = this.session;
-		const backgroundJobs = parseBackgroundJobs(payload);
-		if (!current || !backgroundJobs || this.disposed) return;
-		current.backgroundJobs = backgroundJobs;
-		this.updateTimers();
-		this.repaint();
 	}
 
 	private async migrateLegacyAsyncTokens(
@@ -526,9 +510,7 @@ export class FooterController {
 			this.dependencies.clearInterval(this.poller);
 			this.poller = undefined;
 		}
-		const needsPulse = Boolean(
-			current?.subagents?.activeCount || current?.backgroundJobs?.runningCount,
-		);
+		const needsPulse = Boolean(current?.subagents?.activeCount);
 		if (needsPulse && !this.pulseTimer)
 			this.pulseTimer = this.dependencies.setInterval(
 				() => this.repaint(),

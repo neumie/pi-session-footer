@@ -236,6 +236,7 @@ test("pure layout applies product-selected status omissions and fits Unicode tex
 			outputTokens: 0,
 			statuses: new Map([
 				["alpha", "\x1b[31mA styled\x1b[0m\n\x1b]unsafe\x07"],
+				["background-jobs", "1 background job: Test suite"],
 				["mcp", "MCP: 0/4 servers"],
 				["mcp-auth", "Authenticating calendar..."],
 				["pi-lens-lsp", "LSP Active: typescript"],
@@ -256,7 +257,10 @@ test("pure layout applies product-selected status omissions and fits Unicode tex
 	);
 	assert.match(themed[1], /<dim>.*\x1b\[31mA styled\x1b\[0m.*Z status<\/dim>/);
 	assert.doesNotMatch(themed.join("\n"), /\b(?:project|effort|tok|ctx)\b/);
-	assert.doesNotMatch(themed[1], /MCP:|Authenticating calendar|LSP Active:/);
+	assert.doesNotMatch(
+		themed[1],
+		/MCP:|Authenticating calendar|LSP Active:|background job/,
+	);
 	assert.doesNotMatch(themed[1], /\n|\x1b\]/);
 });
 
@@ -286,10 +290,7 @@ test("controller uses direct TUI render, preserves status ownership, and shares 
 		asyncDir: "/tmp/run",
 		agent: "worker",
 	});
-	pi.events.emit("background-jobs:changed", {
-		runningCount: 1,
-		primary: { id: "job", command: "npm test", startedAt: 10_000 },
-	});
+	assert.equal(pi.bus.get("background-jobs:changed"), undefined);
 	await new Promise((resolve) => setImmediate(resolve));
 	assert.ok(renderRequests > 0);
 	assert.equal(

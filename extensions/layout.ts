@@ -9,6 +9,7 @@ import {
 } from "./domain.ts";
 
 const OMITTED_EXTENSION_STATUS_KEYS = new Set([
+	"background-jobs",
 	"mcp",
 	"mcp-auth",
 	"pi-lens-lsp",

@@ -20,12 +20,8 @@ GPT-5.6 Sol · high · 61%/258k · ↑412k ↓18k    2/3 · Review authenticatio
   - workflow goal and logical progress;
   - smooth, theme-aware pulse while agents are active;
   - restoration of active runs and durable token totals after reload.
-- Optional [`pi-background-jobs`](https://github.com/neumie/pi-background-jobs) integration:
-  - active shell count and pulse;
-  - current human-readable job label;
-  - live elapsed time without a separate persistent widget.
 - Long right-side content truncates before important left-side status.
-- By product choice, MCP connection/authentication and LSP status indicators are omitted; other extension statuses remain visible.
+- By product choice, background-job, MCP connection/authentication, and LSP status indicators are omitted; other extension statuses remain visible.
 - No monetary-cost display.
 
 ## Install
@@ -63,6 +59,7 @@ Requires Node.js 22.19.0 or newer. The extension is loaded directly from TypeScr
 ## Notes
 
 - This extension replaces Pi's complete footer. Another extension calling `ctx.ui.setFooter()` may override it depending on load order.
+- Background-job activity is intentionally left to `pi-background-jobs`' above-editor label row so it is not duplicated in the footer.
 - Live subagent activity uses `pi-subagents` async status artifacts associated with the active Pi session. Completed token totals are stored as custom session entries that are not sent to the model, so temporary artifact cleanup does not reset the counter.
 - Existing sessions created before durable snapshots are migrated from up to 256 contained child session files across the async run directories referenced by `subagent-notify` entries on the active branch. The migration snapshot is persisted only after every discovered transcript parses successfully; otherwise the next reload retries it. Reads are bounded to 64 MiB, 200,000 lines, and 100,000 entries per transcript, with an 8 MiB line limit.
 - Smooth color interpolation requires truecolor terminal support; other color modes retain the normal accent color.
