@@ -110,6 +110,7 @@ function defaultDependencies(): FooterRuntimeDependencies {
 interface SessionRuntime {
 	generation: number;
 	ctx: ExtensionContext;
+	sessionManager: ExtensionContext["sessionManager"];
 	modelId?: string;
 	runs: Map<string, AsyncRunStart>;
 	tokens: Map<string, TokenUsage>;
@@ -183,8 +184,9 @@ export class FooterController {
 		});
 		this.pi.on("session_shutdown", () => this.stop());
 		this.pi.on("model_select", (event, ctx) => {
-			if (!this.session || this.session.ctx !== ctx) return;
-			this.session.modelId = event.model.id;
+			const current = this.currentSessionFor(ctx);
+			if (!current) return;
+			current.modelId = event.model.id;
 			this.repaint();
 		});
 		this.pi.on("thinking_level_select", (_event, ctx) => this.repaintFor(ctx));
@@ -198,6 +200,7 @@ export class FooterController {
 		const runtime: SessionRuntime = {
 			generation: ++this.nextGeneration,
 			ctx,
+			sessionManager: ctx.sessionManager,
 			modelId: ctx.model?.id,
 			runs: new Map(),
 			tokens: restored.tokens,
@@ -415,8 +418,8 @@ export class FooterController {
 	}
 
 	private async restore(ctx: ExtensionContext): Promise<void> {
-		const current = this.session;
-		if (!current || current.ctx !== ctx) return;
+		const current = this.currentSessionFor(ctx);
+		if (!current) return;
 		const generation = current.generation;
 		const sessionIds = new Set([
 			ctx.sessionManager.getSessionFile(),
@@ -497,13 +500,14 @@ export class FooterController {
 	}
 
 	private updateMainTokens(ctx: ExtensionContext): void {
-		if (!this.session || this.session.ctx !== ctx) return;
-		this.session.mainTokens = sessionTokens(ctx);
+		const current = this.currentSessionFor(ctx);
+		if (!current) return;
+		current.mainTokens = sessionTokens(ctx);
 		this.repaint();
 	}
 
 	private repaintFor(ctx: ExtensionContext): void {
-		if (this.session?.ctx === ctx) this.repaint();
+		if (this.currentSessionFor(ctx)) this.repaint();
 	}
 
 	private repaint(): void {
@@ -541,6 +545,11 @@ export class FooterController {
 		if (this.pulseTimer) this.dependencies.clearInterval(this.pulseTimer);
 		this.poller = undefined;
 		this.pulseTimer = undefined;
+	}
+
+	private currentSessionFor(ctx: ExtensionContext): SessionRuntime | undefined {
+		const current = this.session;
+		return current?.sessionManager === ctx.sessionManager ? current : undefined;
 	}
 
 	private isCurrent(generation: number): boolean {

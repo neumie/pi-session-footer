@@ -317,6 +317,43 @@ test("controller uses direct TUI render, preserves status ownership, and shares 
 	assert.equal([...pi.bus.values()].flat().length, 0);
 });
 
+test("token updates accept Pi's fresh context wrappers for the current session only", async () => {
+	const pi = new FakePi();
+	const controller = new FooterController(pi.api(), fakeDependencies().dependencies);
+	controller.register();
+	const ui: FakeUI = { statusWrites: [], widgetWrites: [] };
+	const branch: unknown[] = [];
+	const startContext = makeContext(ui, branch);
+	const start = pi.lifecycle.get("session_start")?.[0];
+	const turnEnd = pi.lifecycle.get("turn_end")?.[0];
+	assert.ok(start);
+	assert.ok(turnEnd);
+	await start({}, startContext);
+	const footer = createFooter(ui, () => {});
+
+	const foreignBranch = [
+		{
+			type: "message",
+			message: { role: "assistant", usage: { input: 999, output: 999 } },
+		},
+	];
+	await turnEnd({}, makeContext(ui, foreignBranch, "foreign-session"));
+	assert.match(footer.render(200).join("\n"), /↑0 ↓0/);
+
+	branch.push({
+		type: "message",
+		message: { role: "assistant", usage: { input: 12, output: 18 } },
+	});
+	const nextContext = {
+		...startContext,
+	} as ExtensionContext;
+	assert.notEqual(nextContext, startContext);
+	assert.equal(nextContext.sessionManager, startContext.sessionManager);
+	await turnEnd({}, nextContext);
+	assert.match(footer.render(200).join("\n"), /↑12 ↓18/);
+	controller.stop();
+});
+
 test("restore keeps completed tokens while only restoring active runs", async () => {
 	const pi = new FakePi();
 	const statuses = new Map<string, unknown>([
